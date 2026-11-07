@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: File_check",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            // ========== 虚拟环境配置 ==========
+            // 方案A：相对路径（推荐，项目内venv，团队共用）
+            "python": "C:\\Users\\dellg\\anaconda3\\envs\\file_check\\python.exe",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

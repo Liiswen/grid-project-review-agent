@@ -1,0 +1,14 @@
+Flask
+Werkzeug
+openai
+PyMuPDF
+Pillow
+numpy
+opencv-python
+python-docx
+openpyxl
+rapidocr
+onnxruntime
+httpx
+olefile
+pywin32; platform_system == "Windows"

@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电网数字化项目规范性审查系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a5276, #2980b9);
+            color: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header p { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #eee;
+            color: #1a5276;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #555;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #d9d9d9;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #f0f7ff;
+        }
+        .upload-area.dragover {
+            border-color: #2980b9;
+            background: #e8f4fd;
+        }
+        .upload-area .icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-area .text { font-size: 16px; color: #666; }
+        .upload-area .hint { font-size: 12px; color: #999; margin-top: 8px; }
+        .file-info {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .file-info.show { display: block; }
+        .stage-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+        }
+        .stage-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        .stage-checkbox:hover { border-color: #2980b9; background: #f0f7ff; }
+        .stage-checkbox.checked {
+            border-color: #2980b9;
+            background: #e3f2fd;
+            color: #1a5276;
+        }
+        .stage-checkbox input { margin-right: 8px; }
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(41,128,185,0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #2ecc71; }
+        .btn-outline {
+            background: white;
+            border: 1px solid #d9d9d9;
+            color: #555;
+        }
+        .btn-outline:hover { border-color: #2980b9; color: #2980b9; }
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+        .progress-area { display: none; margin-top: 20px; }
+        .progress-area.show { display: block; }
+        .progress-bar {
+            height: 12px;
+            background: #eee;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2980b9, #27ae60);
+            border-radius: 6px;
+            transition: width 0.5s;
+            width: 0%;
+        }
+        .progress-text { font-size: 13px; color: #666; text-align: center; }
+        .results-area { display: none; margin-top: 20px; }
+        .results-area.show { display: block; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+        }
+        .summary-card .number { font-size: 32px; font-weight: 700; }
+        .summary-card .label { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .bg-total { background: #5b6abf; }
+        .bg-pass { background: #27ae60; }
+        .bg-fail { background: #e74c3c; }
+        .bg-unknown { background: #f39c12; }
+        .bg-na { background: #95a5a6; }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+        .result-table th {
+            background: #f5f6fa;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+        }
+        .result-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: top;
+        }
+        .result-table tr:hover { background: #fafbfc; }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-pass { background: #d4edda; color: #155724; }
+        .badge-fail { background: #f8d7da; color: #721c24; }
+        .badge-unknown { background: #fff3cd; color: #856404; }
+        .badge-na { background: #e2e3e5; color: #383d41; }
+        .text-red { color: #e74c3c; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 14px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .toast-error { background: #e74c3c; }
+        .toast-success { background: #27ae60; }
+        .toast-info { background: #2980b9; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .api-config {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .api-config .form-group { flex: 1; min-width: 200px; }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input[type="file"] { display: none; }
+        .preview-files {
+            display: none;
+            margin-top: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .preview-files.show { display: block; }
+        .preview-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .preview-file-item .sig-info {
+            font-size: 11px;
+            color: #888;
+        }
+        .preview-file-item .sig-info .stamp { color: #e74c3c; }
+        .preview-file-item .sig-info .sign { color: #2980b9; }
+
+        /* Manual Review */
+        .manual-review-area { display: none; margin-top: 20px; }
+        .manual-review-area.show { display: block; }
+        .review-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+        .review-item:hover { border-color: #2980b9; }
+        .review-item.confirmed {
+            background: #f0faf0;
+            border-color: #27ae60;
+        }
+        .review-item .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .review-item .item-info { flex: 1; }
+        .review-item .item-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .btn-confirm { background: #27ae60; color: white; }
+        .btn-confirm:hover { background: #2ecc71; }
+        .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-view-files { background: #3498db; color: white; }
+        .btn-view-files:hover { background: #2980b9; }
+        .confirmed-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #27ae60;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .review-actions {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .review-status-text { font-size: 13px; color: #666; }
+        .review-summary {
+            padding: 12px 16px;
+            background: #fff8e1;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { font-size: 16px; color: #1a5276; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0 4px;
+        }
+        .modal-close:hover { color: #333; }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .modal-body img {
+            max-width: 100%;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .modal-body .page-label {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            font-weight: 600;
+        }
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>电网数字化项目规范性审查系统</h1>
+        <p>基于多模态大模型的自动化审查平台</p>
+    </div>
+
+    <div class="container">
+        <!-- API 配置 -->
+        <div class="card">
+            <div class="card-title">API 配置</div>
+            <div class="api-config">
+                <div class="form-group">
+                    <label>火山引擎·豆包 API Key</label>
+                    <input type="password" id="apiKey" placeholder="请输入火山引擎 API Key（ark_xxx）">
+                </div>
+                <!-- PDF自动使用视觉识别，DOC自动使用纯文本审查 -->
+            </div>
+        </div>
+
+        <!-- 上传区域 -->
+        <div class="card">
+            <div class="card-title">1. 上传项目资料</div>
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="icon">📦</div>
+                <div class="text">点击上传或拖拽 ZIP 文件到此处</div>
+                <div class="hint">支持 .zip 格式，包含 PDF/DOC/DOCX 项目资料</div>
+            </div>
+            <input type="file" id="fileInput" accept=".zip" onchange="handleFileSelect(event)">
+            <div class="file-info" id="fileInfo">
+                <strong>已选择: </strong><span id="fileName"></span>
+            </div>
+        </div>
+
+        <!-- 选择审查环节 -->
+        <div class="card">
+            <div class="card-title">2. 选择审查环节</div>
+            <div class="form-group">
+                <label>审查阶段（可多选）</label>
+                  <div class="stage-checkboxes" id="stageCheckboxes"></div>
+            </div>
+        </div>
+
+        <!-- 开始审查 -->
+        <div class="card">
+            <div class="card-title">3. 开始审查</div>
+            <button class="btn btn-primary" id="btnReview" onclick="startReview()" disabled>
+                <span id="btnReviewText">开始审查</span>
+            </button>
+            <div class="progress-area" id="progressArea">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">准备中...</div>
+            </div>
+        </div>
+
+        <!-- 审查结果 -->
+        <div class="results-area" id="resultsArea">
+            <div class="card">
+                <div class="card-title">审查结果</div>
+                <div class="summary-cards" id="summaryCards"></div>
+                <div class="btn-group">
+                    <button class="btn btn-success" id="btnDownloadExcel" onclick="downloadResult('excel')">下载 Excel 结果</button>
+                </div>
+                <div style="overflow-x: auto; margin-top: 16px;">
+                    <table class="result-table" id="resultTable">
+                        <colgroup>
+                            <col style="width:50px;">
+                            <col style="width:120px;">
+                            <col style="width:120px;">
+                            <col style="width:190px;">
+                            <col style="width:120px;">
+                            <col style="width:160px;">
+                            <col style="width:260px;">
+                            <col style="width:220px;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>阶段</th>
+                                <th>环节</th>
+                                <th>检查要点</th>
+                                <th>结果</th>
+                                <th>对应文件</th>
+                                <th>问题/说明</th>
+                                <th>建议</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手动复核区域 -->
+        <div class="manual-review-area" id="manualReviewArea">
+            <div class="card">
+                <div class="card-title">手动复核 <span style="font-size:13px;font-weight:400;color:#999;margin-left:8px;">逐项确认"无法判断"和"不合格"的条目</span></div>
+                <div class="review-summary" id="reviewSummary">正在加载需要复核的条目...</div>
+                <div id="reviewItems"></div>
+                <div class="review-actions" id="reviewActions" style="display:none;">
+                    <span class="review-status-text" id="reviewStatusText">请逐项确认</span>
+                    <button class="btn btn-success" id="btnFinishReview" onclick="finishReview()">完成复核</button>
+                    <button class="btn btn-primary" id="btnGenerateReport" onclick="generateSimplifiedReport()" style="display:none;">生成简化报告</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文件查看 Modal -->
+    <div class="modal-overlay" id="fileModal">
+        <div class="modal-content" style="width:800px;">
+            <div class="modal-header">
+                <h3 id="modalTitle">文件查看</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="page-label">加载中...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        let currentTaskId = null;
+        let manualReviewItems = [];
+        let uploadedFile = null;
+        let pollTimer = null;
+
+        async function loadStageOptions() {
+            const container = document.getElementById('stageCheckboxes');
+            try {
+                const response = await fetch('/api/stages');
+                const data = await response.json();
+                const stages = data.stages || [];
+                container.replaceChildren();
+                stages.forEach((stage, index) => {
+                    const label = document.createElement('label');
+                    label.className = `stage-checkbox${index === 0 ? ' checked' : ''}`;
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.name = 'reviewStage';
+                    input.value = stage;
+                    input.checked = index === 0;
+                    input.addEventListener('change', () => label.classList.toggle('checked', input.checked));
+                    const text = document.createElement('span');
+                    text.textContent = stage;
+                    label.append(input, text);
+                    container.appendChild(label);
+                });
+                if (!stages.length) showToast('未找到附件2生成的检查要点文件', 'error');
+            } catch (error) {
+                showToast(`加载审查阶段失败：${error.message}`, 'error');
+            }
+        }
+
+        loadStageOptions();
+
+        // 文件上传
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) uploadFile(file);
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                showToast('仅支持 ZIP 格式文件', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('fileName').textContent = `正在上传：${file.name}`;
+            document.getElementById('fileInfo').classList.add('show');
+
+            try {
+                const raw = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/api/upload');
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                            document.getElementById('fileName').textContent =
+                                `正在上传：${file.name}（${Math.round(event.loaded / event.total * 100)}%）`;
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('网络连接失败，请确认 Web 服务仍在运行'));
+                    xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText });
+                    xhr.send(formData);
+                });
+                let data;
+                try {
+                    data = JSON.parse(raw.text);
+                } catch (parseError) {
+                    throw new Error(`服务器返回非JSON内容（HTTP ${raw.status}），请查看服务窗口日志`);
+                }
+                if (!raw.ok) {
+                    throw new Error(data.error || `上传失败（HTTP ${raw.status}）`);
+                }
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+                currentTaskId = data.task_id;
+                uploadedFile = data;
+                document.getElementById('fileName').textContent = data.filename;
+                document.getElementById('fileInfo').classList.add('show');
+                document.getElementById('btnReview').disabled = false;
+                document.getElementById('resultsArea').classList.remove('show');
+                showToast('文件上传成功', 'success');
+            } catch (e) {
+                document.getElementById('fileInfo').classList.remove('show');
+                showToast('上传失败: ' + e.message, 'error');
+            }
+        }
+
+        async function startReview() {
+            if (!currentTaskId) {
+                showToast('请先上传文件', 'error');
+                return;
+            }
+
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const selectedStages = Array.from(
+                document.querySelectorAll('input[name="reviewStage"]:checked')
+            ).map(cb => cb.value);
+            if (!selectedStages.length) {
+                showToast('请至少选择一个审查阶段', 'error');
+                return;
+            }
+
+            document.getElementById('btnReview').disabled = true;
+            document.getElementById('btnReviewText').innerHTML = '<span class="loading-spinner"></span> 启动中...';
+            document.getElementById('progressArea').classList.add('show');
+            document.getElementById('resultsArea').classList.remove('show');
+
+            try {
+                const resp = await fetch('/api/review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: currentTaskId,
+                        stages: selectedStages,
+                        api_key: apiKey
+                    })
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    document.getElementById('btnReview').disabled = false;
+                    document.getElementById('btnReviewText').textContent = '开始审查';
+                    return;
+                }
+                pollStatus();
+            } catch (e) {
+                showToast('启动审查失败: ' + e.message, 'error');
+                document.getElementById('btnReview').disabled = false;
+                document.getElementById('btnReviewText').textContent = '开始审查';
+            }
+        }
+
+        function pollStatus() {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(async () => {
+                try {
+                    const resp = await fetch(`/api/status/${currentTaskId}`);
+                    if (!resp.ok) throw new Error(`状态接口 HTTP ${resp.status}`);
+                    const data = await resp.json();
+                    document.getElementById('progressArea').classList.add('show');
+                    document.getElementById('progressFill').style.width = data.progress + '%';
+                    document.getElementById('progressText').textContent = data.message;
+
+                    if (data.status === 'completed') {
+                        clearInterval(pollTimer);
+                        document.getElementById('progressFill').style.width = '100%';
+                        document.getElementById('progressText').textContent = data.message || '审查完成';
+                        showResults(data);
+                        loadManualReview();
+                        document.getElementById('btnReview').disabled = false;
+                        document.getElementById('btnReviewText').textContent = '重新审查';
+                        showToast('审查完成!', 'success');
+                    } else if (data.status === 'error') {
+                        clearInterval(pollTimer);
+                        showToast('审查失败: ' + (data.error || '未知错误'), 'error');
+                        document.getElementById('btnReview').disabled = false;
+                        document.getElementById('btnReviewText').textContent = '重试';
+                    }
+                } catch (e) {
+                    // 服务重载或网络短暂波动时继续轮询，不让进度区域消失。
+                    document.getElementById('progressArea').classList.add('show');
+                    document.getElementById('progressText').textContent = '正在等待服务响应，请勿关闭页面...';
+                }
+            }, 1500);
+        }
+
+        function showResults(data) {
+            document.getElementById('resultsArea').classList.add('show');
+
+            // 汇总卡片
+            const s = data.summary;
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="summary-card bg-total"><div class="number">${s.total}</div><div class="label">总检查项</div></div>
+                <div class="summary-card bg-pass"><div class="number">${s.qualified}</div><div class="label">合格</div></div>
+                <div class="summary-card bg-fail"><div class="number">${s.unqualified}</div><div class="label">不合格</div></div>
+                <div class="summary-card bg-unknown"><div class="number">${s.unknown}</div><div class="label">无法判断</div></div>
+                <div class="summary-card bg-na"><div class="number">${s.na}</div><div class="label">不适用</div></div>
+            `;
+
+            // 结果表格
+            const badgeMap = {
+                '合格': 'badge-pass',
+                '不合格': 'badge-fail',
+                '无法判断': 'badge-unknown',
+                '不适用': 'badge-na'
+            };
+            let tbody = '';
+            (data.results || []).forEach(r => {
+                let matchedFile = r.matched_file || '';
+                const candidates = r.candidate_files || [];
+                let matchedFileHtml = '';
+                if (matchedFile) {
+                    const isSystemFallback = r.matched_file_source === 'system_fallback';
+                    matchedFileHtml = matchedFile + (isSystemFallback ? '<span style="color:#e67e22;font-size:11px;margin-left:4px;">(主匹配)</span>' : '');
+                } else {
+                    matchedFileHtml = '<span style="color:#e74c3c;">无对应文件</span>';
+                }
+                if (candidates.length > 1) {
+                    matchedFileHtml += `<div style="color:#666;font-size:11px;margin-top:3px;">证据组：${candidates.length} 个文件</div>`;
+                }
+                tbody += `<tr>
+                    <td>${r.seq}</td>
+                    <td>${r.stage || ''}</td>
+                    <td>${r.link || ''}</td>
+                    <td>${(r.check_point || '').substring(0, 80)}</td>
+                    <td><span class="badge ${badgeMap[r.result] || 'badge-na'}">${r.result}</span></td>
+                    <td style="font-size:12px;word-break:break-all;">${matchedFileHtml}</td>
+                    <td class="${r.result === '不合格' ? 'text-red' : ''}">${r.issue || ''}</td>
+                    <td>${r.suggestion || ''}</td>
+                </tr>`;
+            });
+            document.querySelector('#resultTable tbody').innerHTML = tbody;
+        }
+
+        function downloadResult(type) {
+            if (!currentTaskId) return;
+            window.open(`/api/download/${currentTaskId}/${type}`, '_blank');
+        }
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ===== 手动复核相关函数 =====
+        async function loadManualReview() {
+            const area = document.getElementById('manualReviewArea');
+            if (!currentTaskId) return;
+            try {
+                const resp = await fetch(`/api/manual-review/${currentTaskId}`);
+                const data = await resp.json();
+                if (data.error) return;
+
+                const total = data.total;
+                const confirmed = data.confirmed_count;
+
+                if (total === 0) {
+                    area.classList.remove('show');
+                    return;
+                }
+
+                area.classList.add('show');
+                document.getElementById('reviewSummary').innerHTML =
+                    `共 <strong>${total}</strong> 条需要手动复核，已确认 <strong>${confirmed}</strong> 条`;
+                document.getElementById('reviewActions').style.display = 'flex';
+
+                if (data.all_confirmed) {
+                    document.getElementById('btnFinishReview').disabled = true;
+                    document.getElementById('btnFinishReview').textContent = '已确认完成';
+                    document.getElementById('btnGenerateReport').style.display = 'inline-flex';
+                    document.getElementById('reviewSummary').innerHTML = '<span style="color:#27ae60;">所有条目已手动复核确认完毕</span>';
+                }
+
+                manualReviewItems = data.items;
+                renderManualReviewItems(data.items);
+            } catch (e) {
+                console.error('加载手动复核数据失败:', e);
+            }
+        }
+
+        function renderManualReviewItems(items) {
+            const container = document.getElementById('reviewItems');
+            const badgeMap = {
+                '合格': 'badge-pass',
+                '不合格': 'badge-fail',
+                '无法判断': 'badge-unknown',
+                '不适用': 'badge-na'
+            };
+
+            let html = '';
+            items.forEach(item => {
+                const isConfirmed = item.review_status === 'confirmed';
+                // 构建相关文件显示
+                let relatedFilesHtml = '';
+                if (item.matched_file) {
+                    relatedFilesHtml += `<div style="font-size:12px;color:#27ae60;margin-top:2px;">匹配文件: ${item.matched_file}</div>`;
+                }
+                if (!item.matched_file) {
+                    relatedFilesHtml += `<div style="font-size:12px;color:#e74c3c;margin-top:2px;">无对应文件</div>`;
+                }
+
+                html += `
+                    <div class="review-item ${isConfirmed ? 'confirmed' : ''}" id="review-item-${item.seq}">
+                        <div class="item-header">
+                            <div class="item-info">
+                                <div style="font-weight:600;margin-bottom:4px;">
+                                    #${item.seq} ${item.stage} - ${item.link}
+                                </div>
+                                <div style="font-size:13px;color:#555;margin-bottom:4px;">
+                                    ${(item.check_point || '').substring(0, 120)}
+                                </div>
+                                <div style="font-size:13px;margin-top:4px;">
+                                    <span style="color:#888;">建议:</span> ${item.suggestion || '无'}
+                                </div>
+                                ${item.doc_name ? `<div style="font-size:12px;color:#888;margin-top:4px;">要求文件: ${item.doc_name}</div>` : ''}
+                                ${relatedFilesHtml}
+                            </div>
+                            <div class="item-actions">
+                                ${isConfirmed ? '<span class="confirmed-badge">已确认</span>' : ''}
+                                <button class="btn btn-view-files" style="padding:6px 16px;font-size:13px;" onclick="viewFileImages(${item.seq})">查看文件</button>
+                                <button class="btn btn-confirm" style="padding:6px 16px;font-size:13px;" id="confirm-btn-${item.seq}" ${isConfirmed ? 'disabled' : ''} onclick="confirmItem(${item.seq})">
+                                    ${isConfirmed ? '已确认' : '确认合格'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function viewFileImages(seq) {
+            const modal = document.getElementById('fileModal');
+            const modalBody = document.getElementById('modalBody');
+            const modalTitle = document.getElementById('modalTitle');
+
+            modalBody.innerHTML = '<div class="page-label">加载中...</div>';
+            modalTitle.textContent = `条目 #${seq} - 相关文件`;
+            modal.classList.add('show');
+
+            try {
+                const item = manualReviewItems.find(i => i.seq === seq);
+                if (!item) {
+                    modalBody.innerHTML = '<div class="page-label" style="color:#e74c3c;">未找到该条目的文件信息</div>';
+                    return;
+                }
+
+                const relatedFiles = item.related_files || [];
+                if (relatedFiles.length === 0) {
+                    modalBody.innerHTML = '<div class="page-label" style="color:#e74c3c;">该条目无相关文件</div>';
+                    return;
+                }
+
+                let imagesHtml = '';
+                for (const file of relatedFiles) {
+                    const imgResp = await fetch(`/api/file-images/${currentTaskId}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({filename: file.file_key || file.filename})
+                    });
+                    const imgData = await imgResp.json();
+
+                    if (imgData.images && imgData.images.length > 0) {
+                        imagesHtml += `<div style="width:100%;margin-bottom:8px;">
+                            <div class="page-label" style="text-align:left;font-size:14px;color:#333;">
+                                ${file.filename} (共 ${imgData.images.length} 页)
+                            </div>
+                        </div>`;
+                        imgData.images.forEach((url, idx) => {
+                            const pageNumber = (imgData.page_numbers && imgData.page_numbers[idx]) || (idx + 1);
+                            imagesHtml += `
+                                <div style="width:100%;text-align:center;">
+                                    <div class="page-label">第 ${pageNumber} 页</div>
+                                    <img src="${url}" alt="${file.filename} 第${pageNumber}页" loading="lazy" style="max-width:100%;">
+                                </div>
+                            `;
+                        });
+                    } else {
+                        imagesHtml += `<div style="width:100%;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:12px;">
+                            <div class="page-label" style="text-align:left;font-size:14px;color:#333;">${file.filename}</div>
+                            <div style="font-size:13px;color:#666;white-space:pre-wrap;">${imgData.text || '(无文本内容)'}</div>
+                        </div>`;
+                    }
+                }
+                modalBody.innerHTML = imagesHtml || '<div class="page-label" style="color:#e74c3c;">未找到相关文件内容</div>';
+            } catch (e) {
+                modalBody.innerHTML = '<div class="page-label" style="color:#e74c3c;">加载文件失败: ' + e.message + '</div>';
+            }
+        }
+
+        async function confirmItem(seq) {
+            try {
+                const resp = await fetch(`/api/manual-review/${currentTaskId}/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({seq: seq})
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                const item = document.getElementById(`review-item-${seq}`);
+                if (item) item.classList.add('confirmed');
+
+                const btn = document.getElementById(`confirm-btn-${seq}`);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '已确认';
+                }
+
+                const actionsDiv = document.querySelector(`#review-item-${seq} .item-actions`);
+                if (actionsDiv && !actionsDiv.querySelector('.confirmed-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'confirmed-badge';
+                    badge.textContent = '已确认';
+                    actionsDiv.insertBefore(badge, actionsDiv.firstChild);
+                }
+
+                showToast(`条目 #${seq} 已确认为合格`, 'success');
+                loadManualReview();
+            } catch (e) {
+                showToast('确认失败: ' + e.message, 'error');
+            }
+        }
+
+        async function finishReview() {
+            if (!confirm('确认所有条目已手动复核完毕？未确认的条目将被标记为已确认。')) return;
+            try {
+                const resp = await fetch(`/api/manual-review/${currentTaskId}/finish`, { method: 'POST' });
+                const data = await resp.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                document.getElementById('btnFinishReview').disabled = true;
+                document.getElementById('btnFinishReview').textContent = '已确认完成';
+                document.getElementById('btnGenerateReport').style.display = 'inline-flex';
+                document.getElementById('reviewSummary').innerHTML = '<span style="color:#27ae60;">所有条目已手动复核确认完毕</span>';
+                showToast('复核确认完成，可生成简化报告', 'success');
+            } catch (e) {
+                showToast('操作失败: ' + e.message, 'error');
+            }
+        }
+
+        async function generateSimplifiedReport() {
+            try {
+                const resp = await fetch(`/api/manual-review/${currentTaskId}/generate-simplified-report`, { method: 'POST' });
+                const data = await resp.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+
+                showToast('简化报告生成成功', 'success');
+                const btn = document.getElementById('btnGenerateReport');
+                btn.textContent = '下载简化报告';
+                btn.onclick = function() {
+                    window.open(`/api/download/${currentTaskId}/simplified_excel`, '_blank');
+                };
+            } catch (e) {
+                showToast('生成失败: ' + e.message, 'error');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('fileModal').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
