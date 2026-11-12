@@ -179,7 +179,7 @@ def start_review():
                 task_status[task_id]['message'] = msg
                 task_status[task_id]['progress'] = pct
 
-            results, excel_path, report_path, file_infos = agent.run_review(
+            results, excel_path, report_path, file_infos, completeness_report = agent.run_review(
                 zip_path,
                 selected_stages=selected or available_stages,
                 progress_callback=update_progress,
@@ -192,6 +192,7 @@ def start_review():
             task_status[task_id]['results'] = results
             task_status[task_id]['excel_path'] = excel_path
             task_status[task_id]['file_infos'] = file_infos
+            task_status[task_id]['completeness_report'] = completeness_report
 
         except Exception as e:
             task_status[task_id]['status'] = 'error'
@@ -251,6 +252,7 @@ def get_status(task_id):
             'na': na
         }
         response['results'] = results
+        response['completeness_report'] = status.get('completeness_report', {})
         response['excel_filename'] = os.path.basename(status.get('excel_path', ''))
 
     return jsonify(response)

@@ -209,6 +209,44 @@
         .badge-unknown { background: #fff3cd; color: #856404; }
         .badge-na { background: #e2e3e5; color: #383d41; }
         .text-red { color: #e74c3c; }
+        .candidate-main { font-size: 12px; word-break: break-all; color: #333; }
+        .candidate-tag { color: #e67e22; font-size: 11px; margin-left: 4px; }
+        .candidate-more {
+            margin-top: 4px;
+            max-height: 52px;
+            overflow-y: auto;
+            padding: 2px 4px 2px 6px;
+            border-left: 2px solid #e8edf3;
+        }
+        .candidate-item {
+            font-size: 11px;
+            color: #888;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+        .candidate-more::-webkit-scrollbar { width: 6px; }
+        .candidate-more::-webkit-scrollbar-thumb {
+            background: #cfd6df;
+            border-radius: 3px;
+        }
+        .completeness-stage { margin-bottom: 18px; }
+        .completeness-stage-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a5276;
+            margin-bottom: 6px;
+        }
+        .completeness-stage-title .stage-count {
+            font-size: 12px;
+            font-weight: 400;
+            color: #888;
+            margin-left: 8px;
+        }
+        .completeness-summary {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
+        }
         .toast {
             position: fixed;
             top: 20px;
@@ -465,7 +503,7 @@
                             <col style="width:120px;">
                             <col style="width:190px;">
                             <col style="width:120px;">
-                            <col style="width:160px;">
+                            <col style="width:210px;">
                             <col style="width:260px;">
                             <col style="width:220px;">
                         </colgroup>
@@ -485,6 +523,13 @@
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- 材料完整性检查 -->
+        <div class="card" id="completenessCard" style="display: none;">
+            <div class="card-title">材料完整性检查</div>
+            <div class="completeness-summary" id="completenessSummary"></div>
+            <div id="completenessBody"></div>
         </div>
 
         <!-- 手动复核区域 -->
@@ -621,6 +666,7 @@
                 document.getElementById('fileInfo').classList.add('show');
                 document.getElementById('btnReview').disabled = false;
                 document.getElementById('resultsArea').classList.remove('show');
+                document.getElementById('completenessCard').style.display = 'none';
                 showToast('文件上传成功', 'success');
             } catch (e) {
                 document.getElementById('fileInfo').classList.remove('show');
@@ -647,6 +693,7 @@
             document.getElementById('btnReviewText').innerHTML = '<span class="loading-spinner"></span> 启动中...';
             document.getElementById('progressArea').classList.add('show');
             document.getElementById('resultsArea').classList.remove('show');
+            document.getElementById('completenessCard').style.display = 'none';
 
             try {
                 const resp = await fetch('/api/review', {
@@ -731,15 +778,24 @@
             (data.results || []).forEach(r => {
                 let matchedFile = r.matched_file || '';
                 const candidates = r.candidate_files || [];
+                const mainFile = matchedFile || candidates[0] || '';
+                const restCandidates = candidates.filter(c => c !== mainFile);
                 let matchedFileHtml = '';
-                if (matchedFile) {
+                if (mainFile) {
                     const isSystemFallback = r.matched_file_source === 'system_fallback';
-                    matchedFileHtml = matchedFile + (isSystemFallback ? '<span style="color:#e67e22;font-size:11px;margin-left:4px;">(主匹配)</span>' : '');
+                    matchedFileHtml = `<div class="candidate-main">${mainFile}` +
+                        (isSystemFallback ? '<span class="candidate-tag">(主匹配)</span>' : '') +
+                        '</div>';
+                    if (restCandidates.length) {
+                        const restHtml = restCandidates
+                            .map(c => `<div class="candidate-item">${c}</div>`)
+                            .join('');
+                        const allText = [mainFile, ...restCandidates]
+                            .join('\n').replace(/"/g, '&quot;');
+                        matchedFileHtml += `<div class="candidate-more" title="${allText}">${restHtml}</div>`;
+                    }
                 } else {
-                    matchedFileHtml = '<span style="color:#e74c3c;">无对应文件</span>';
-                }
-                if (candidates.length > 1) {
-                    matchedFileHtml += `<div style="color:#666;font-size:11px;margin-top:3px;">证据组：${candidates.length} 个文件</div>`;
+                    matchedFileHtml = '<span class="text-red">无对应文件</span>';
                 }
                 tbody += `<tr>
                     <td>${r.seq}</td>
@@ -753,6 +809,63 @@
                 </tr>`;
             });
             document.querySelector('#resultTable tbody').innerHTML = tbody;
+
+            showCompleteness(data.completeness_report);
+        }
+
+        function showCompleteness(report) {
+            const card = document.getElementById('completenessCard');
+            const stages = Object.keys(report || {});
+            if (!stages.length) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = 'block';
+
+            const total = stages.reduce((n, s) => n + report[s].length, 0);
+            const missing = stages.reduce(
+                (n, s) => n + report[s].filter(i => !i.exists).length, 0
+            );
+            document.getElementById('completenessSummary').innerHTML =
+                `清单共 ${total} 项材料，缺失 <span class="${missing ? 'text-red' : ''}">${missing}</span> 项`;
+
+            let html = '';
+            stages.forEach(stage => {
+                const items = report[stage] || [];
+                const stageMissing = items.filter(i => !i.exists).length;
+                const rows = items.map(i => `<tr>
+                    <td><span class="badge ${i.exists ? 'badge-pass' : 'badge-fail'}">${i.exists ? '存在' : '缺失'}</span></td>
+                    <td>${i.doc_name || ''}</td>
+                    <td>${i.alias || '—'}</td>
+                    <td style="font-size:12px;word-break:break-all;">${i.storage_path || ''}</td>
+                    <td style="font-size:12px;word-break:break-all;">${i.exists ? (i.file_key || '—') : '<span class="text-red">未找到</span>'}</td>
+                </tr>`).join('');
+                html += `<div class="completeness-stage">
+                    <div class="completeness-stage-title">${stage}
+                        <span class="stage-count">缺失 ${stageMissing}/${items.length}</span>
+                    </div>
+                    <table class="result-table">
+                        <colgroup>
+                            <col style="width:70px;">
+                            <col style="width:220px;">
+                            <col style="width:160px;">
+                            <col style="width:260px;">
+                            <col>
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>状态</th>
+                                <th>材料名称</th>
+                                <th>别名</th>
+                                <th>存放路径</th>
+                                <th>匹配文件</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+            });
+            document.getElementById('completenessBody').innerHTML = html;
         }
 
         function downloadResult(type) {

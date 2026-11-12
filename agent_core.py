@@ -16,7 +16,12 @@ from preliminary_rules import load_rule_checkpoints
 from knowledge_base import create_knowledge_dir, save_document_text, save_evidence_index, cleanup_knowledge_dir
 from file_index import select_candidates
 from archive_extractor import extract_supported_documents
+from material_checker import (
+    check_material_completeness, load_material_manifest,
+    find_doc_in_manifest,
+)
 import config
+import re
 
 
 def _write_review_log(lines, path, append=False):
@@ -28,6 +33,33 @@ def _write_review_log(lines, path, append=False):
                 print(line)
             except UnicodeEncodeError:
                 print(line.encode('ascii', errors='replace').decode('ascii'))
+
+
+def _split_doc_names(doc_name):
+    """拆分【对应文件】字段为文件类型列表，忽略括号内的分隔符。"""
+    if not doc_name:
+        return []
+    result = []
+    current = []
+    bracket_depth = 0
+    for ch in doc_name:
+        if ch in '（(':
+            bracket_depth += 1
+            current.append(ch)
+        elif ch in '）)':
+            bracket_depth = max(0, bracket_depth - 1)
+            current.append(ch)
+        elif ch in '、,，;；' and bracket_depth == 0:
+            part = ''.join(current).strip()
+            if part:
+                result.append(part)
+            current = []
+        else:
+            current.append(ch)
+    part = ''.join(current).strip()
+    if part:
+        result.append(part)
+    return result
 
 
 class ReviewAgent:
@@ -183,7 +215,7 @@ class ReviewAgent:
     def run_review(self, zip_path, selected_stages=None, progress_callback=None, task_id=None):
         """
         执行完整审查流程
-        返回: (results, excel_path, report_path, file_infos)
+        返回: (results, excel_path, report_path, file_infos, completeness_report)
         """
         if progress_callback:
             progress_callback('正在加载检查要点...', 5)
@@ -218,7 +250,7 @@ class ReviewAgent:
             except OSError:
                 size = 0
             log_lines.append(
-                f'{index:>4}. [{info.get("file_type", "")}] {info.get("relative_path", "")}  ({size} 字节)'
+                f'{index:>4}. {info.get("relative_path", "")}  ({size} 字节)'
             )
         if progress_callback:
             progress_callback(f'已建立 {len(metadata_infos)} 个文件索引，准备匹配', 20)
@@ -245,39 +277,104 @@ class ReviewAgent:
         if progress_callback:
             progress_callback(f'筛选出 {len(filtered_checkpoints)} 条审查要点', 25)
 
-        # 4. 预处理匹配：为每个检查要点匹配最相关的文件
+        # 4. 材料完整性检查 + 候选文件确定
         if progress_callback:
-            progress_callback('正在执行预处理文件匹配...', 28)
+            progress_callback('正在执行材料完整性检查...', 26)
 
-        # 项目档案目录统一，优先根据附件2中的建议检索路径和文件名完成本地匹配。
-        # 不再为第一轮匹配发送模型请求，也不读取无关文件的首页，避免大资料包长时间停在“匹配”。
-        initial_candidates = {
-            checkpoint['seq']: select_candidates(
-                checkpoint, metadata_infos, limit=config.MAX_CANDIDATES_PER_CHECKPOINT
+        manifest = load_material_manifest()
+        material_map, completeness_report = check_material_completeness(
+            metadata_infos, manifest=manifest
+        )
+
+        # 记录材料完整性检查结果到日志
+        log_lines = [
+            '',
+            '=' * 80,
+            '材料完整性检查结果',
+            '-' * 80,
+        ]
+        for stage, items in completeness_report.items():
+            log_lines.append(f'【{stage}】')
+            for item in items:
+                status = '✓ 存在' if item['exists'] else '✗ 缺失'
+                flag = '是' if item.get('path_exists_only') else '否'
+                alias = item.get('alias') or '（无）'
+                log_lines.append(
+                    f'  {status} | {item["doc_name"]} | 别名: {alias} | '
+                    f'路径即存在: {flag} | 路径: {item["storage_path"]}'
+                    + (f' -> {item["file_key"]}' if item['exists'] else '')
+                )
+        _write_review_log(log_lines, log_path, append=True)
+
+        # 记录 material_map 完整映射到日志
+        log_lines = [
+            '',
+            '=' * 80,
+            f'material_map 完整映射（共 {len(material_map)} 条）',
+            '-' * 80,
+        ]
+        for (stage, doc_name), mat in material_map.items():
+            log_lines.append(f'  ({stage}, {doc_name})')
+            log_lines.append(f'    exists: {mat["exists"]}')
+            log_lines.append(f'    alias: {mat.get("alias") or "（无）"}')
+            log_lines.append(f'    path_exists_only: {mat.get("path_exists_only")}')
+            log_lines.append(f'    file_key: {mat["file_key"] or "（无）"}')
+            log_lines.append(f'    filepath: {mat["filepath"] or "（无）"}')
+            log_lines.append(f'    storage_path: {mat["storage_path"] or "（无）"}')
+        _write_review_log(log_lines, log_path, append=True)
+
+        if progress_callback:
+            missing_count = sum(
+                1 for items in completeness_report.values()
+                for item in items if not item['exists']
             )
-            for checkpoint in filtered_checkpoints
-        }
-        matched_files = {
-            checkpoint['seq']: initial_candidates.get(checkpoint['seq'], [''])[0]
-            if initial_candidates.get(checkpoint['seq']) else ''
-            for checkpoint in filtered_checkpoints
-        }
-        matched_count = sum(1 for v in matched_files.values() if v)
-        if progress_callback:
-            progress_callback(f'文件匹配完成: {matched_count}/{len(filtered_checkpoints)} 条已匹配', 30)
+            progress_callback(
+                f'材料完整性检查完成: 缺失 {missing_count} 项材料', 28
+            )
 
+        # 为每条检查要点确定候选文件和缺失文件
         candidate_map = {}
-        candidate_details_map = {}
+        matched_files = {}
+        missing_files_map = {}
+
         for checkpoint in filtered_checkpoints:
-            candidates, details = select_candidates(
-                checkpoint, metadata_infos, matched_files.get(checkpoint['seq'], ''),
-                limit=config.MAX_CANDIDATES_PER_CHECKPOINT,
-                with_details=True,
-            )
-            candidate_map[checkpoint['seq']] = candidates
-            candidate_details_map[checkpoint['seq']] = details
-            if matched_files.get(checkpoint['seq'], '') not in candidates:
-                matched_files[checkpoint['seq']] = candidates[0] if candidates else ''
+            seq = checkpoint['seq']
+            stage = checkpoint.get('stage', '')
+            doc_name_field = checkpoint.get('doc_name', '')
+            doc_types = _split_doc_names(doc_name_field)
+
+            candidates = []
+            missing = []
+
+            for dtype in doc_types:
+                manifest_doc = find_doc_in_manifest(dtype, stage, manifest)
+                if manifest_doc:
+                    mat_stage = manifest_doc['stage']
+                    mat_name = manifest_doc['doc_name']
+                    mat = material_map.get((mat_stage, mat_name))
+                    if mat and mat['exists']:
+                        if mat['file_key'] not in candidates:
+                            candidates.append(mat['file_key'])
+                    else:
+                        missing.append(mat_name)
+                else:
+                    extra_candidates = select_candidates(
+                        {**checkpoint, 'doc_name': dtype},
+                        metadata_infos, limit=3
+                    )
+                    candidates.extend(extra_candidates)
+
+            seen = set()
+            unique_candidates = []
+            for c in candidates:
+                if c not in seen:
+                    seen.add(c)
+                    unique_candidates.append(c)
+            candidates = unique_candidates[:config.MAX_CANDIDATES_PER_CHECKPOINT]
+
+            candidate_map[seq] = candidates
+            matched_files[seq] = candidates[0] if candidates else ''
+            missing_files_map[seq] = missing
 
         log_lines = [
             '',
@@ -288,19 +385,21 @@ class ReviewAgent:
         for checkpoint in filtered_checkpoints:
             seq = checkpoint['seq']
             candidates = candidate_map.get(seq, [])
+            missing = missing_files_map.get(seq, [])
             log_lines.append(
                 f'[{seq}] {checkpoint.get("stage", "")}/{checkpoint.get("link", "")} | '
                 f'{checkpoint.get("check_point", "")}'
             )
-            log_lines.append(f'     主匹配：{matched_files.get(seq) or "（无）"}')
-            if not candidates:
-                log_lines.append('     候选：无')
-            details = candidate_details_map.get(seq, {})
-            for index, name in enumerate(candidates, 1):
-                detail = details.get(name, {})
-                log_lines.append(
-                    f'     {index}. [{detail.get("score", 0)}分 | {detail.get("source", "")}] {name}'
-                )
+            log_lines.append(f'     对应文件: {checkpoint.get("doc_name", "")}')
+            log_lines.append(f'     主匹配: {matched_files.get(seq) or "（无）"}')
+            if candidates:
+                log_lines.append(f'     候选文件 ({len(candidates)}):')
+                for idx, name in enumerate(candidates, 1):
+                    log_lines.append(f'       {idx}. {name}')
+            else:
+                log_lines.append('     候选文件: 无')
+            if missing:
+                log_lines.append(f'     缺失材料: {", ".join(missing)}')
         _write_review_log(log_lines, log_path, append=True)
 
         selected_filenames = {name for names in candidate_map.values() for name in names}
@@ -317,8 +416,29 @@ class ReviewAgent:
         task_extract_dir = extract_dir
 
         def review_one(index, raw_checkpoint):
-            matched_file = matched_files.get(raw_checkpoint['seq'], '')
-            cp = {**raw_checkpoint, 'candidate_files': candidate_map.get(raw_checkpoint['seq'], [])}
+            seq = raw_checkpoint['seq']
+            missing = missing_files_map.get(seq, [])
+
+            # 如果存在缺失的必需材料，直接判定不合格，不再送模型
+            if missing:
+                missing_str = '、'.join(missing)
+                return index, {
+                    'seq': seq,
+                    'check_point': raw_checkpoint['check_point'],
+                    'doc_name': raw_checkpoint['doc_name'],
+                    'stage': raw_checkpoint['stage'],
+                    'link': raw_checkpoint['link'],
+                    'result': '不合格',
+                    'issue': f'审检文件未提供: {missing_str}',
+                    'suggestion': f'添加缺失文件: {missing_str}',
+                    'evidence': '',
+                    'matched_file': '',
+                    'missing_files': missing,
+                    'candidate_files': candidate_map.get(seq, []),
+                }
+
+            matched_file = matched_files.get(seq, '')
+            cp = {**raw_checkpoint, 'candidate_files': candidate_map.get(seq, [])}
 
             # 判断是否需要 Vision 审查
             cp_text = cp.get('check_point', '')
@@ -392,7 +512,7 @@ class ReviewAgent:
             excel_path = fill_excel_template(results, self.project_name,
                                              selected_stages=selected_stages)
             report_path = ''
-            return results, excel_path, report_path, file_infos
+            return results, excel_path, report_path, file_infos, completeness_report
         finally:
             cleanup_knowledge_dir(self.knowledge_dir)
             self.knowledge_dir = None
